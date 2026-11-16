@@ -1,153 +1,255 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border p-6">
-    <h2 class="text-xl font-bold text-gray-800 mb-6">Create New Financial Voucher</h2>
+<div class="bg-white rounded-lg shadow-sm border border-slate-200 p-8 max-w-5xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Create New Financial Voucher</h1>
+    </div>
 
-    <form action="{{ route('vouchers.store') }}" method="POST" id="voucherForm">
+    @if($errors->has('double_entry'))
+        <div class="mb-5 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded">
+            {{ $errors->first('double_entry') }}
+        </div>
+    @endif
+
+    <form action="{{ route('vouchers.store') }}" method="POST" id="voucherForm" class="space-y-6">
         @csrf
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <!-- Row 1: Type, Date, Program / Project -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Voucher Type</label>
-                <select name="type" class="w-full border-gray-300 rounded-md border p-2 text-sm" required>
-                    <option value="payment">Payment Voucher</option>
-                    <option value="receipt">Receipt Voucher</option>
-                    <option value="journal">Journal Voucher</option>
+                <label class="block text-xs font-medium text-gray-700 mb-1">
+                    Voucher Type <span class="text-red-500 font-bold">*</span>
+                </label>
+                <select name="type" id="voucherType" required class="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-slate-500">
+                    <option value="journal" {{ old('type') == 'journal' ? 'selected' : '' }}>Journal Voucher</option>
+                    <option value="payment" {{ old('type') == 'payment' ? 'selected' : '' }}>Payment Voucher</option>
+                    <option value="receipt" {{ old('type') == 'receipt' ? 'selected' : '' }}>Receipt Voucher</option>
                 </select>
             </div>
+
             <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Transaction Date</label>
-                <input type="date" name="transaction_date" value="{{ date('Y-m-d') }}" class="w-full border-gray-300 rounded-md border p-2 text-sm" required>
+                <label class="block text-xs font-medium text-gray-700 mb-1">
+                    Transaction Date <span class="text-red-500 font-bold">*</span>
+                </label>
+                <div class="relative">
+                    <input type="date" name="transaction_date" value="{{ old('transaction_date', date('Y-m-d')) }}" required
+                           class="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-slate-500">
+                </div>
             </div>
+
             <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Program / Project</label>
-                <select name="program_id" class="w-full border-gray-300 rounded-md border p-2 text-sm">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Program / Project</label>
+                <select name="program_id" id="programSelect"
+                        class="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-slate-500">
                     <option value="">-- General Administrative --</option>
-                    @foreach($programs as $program)
-                        <option value="{{ $program->id }}">{{ $program->code }} - {{ $program->name }}</option>
-                    @endforeach
+                    @if(isset($programs) && $programs->isNotEmpty())
+                        @foreach($programs as $prog)
+                            <option value="{{ $prog->id }}" {{ old('program_id') == $prog->id ? 'selected' : '' }}>
+                                {{ $prog->code ? $prog->code . ' - ' : '' }}{{ $prog->name }}
+                            </option>
+                        @endforeach
+                    @endif
+                    <option value="other" {{ old('program_id') === 'other' ? 'selected' : '' }}>Other / Unassigned Project</option>
                 </select>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <!-- Row 2: Payee, Narration -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Payee / Received From</label>
-                <input type="text" name="payee_or_source" placeholder="Vendor, Employee, or Donor" class="w-full border-gray-300 rounded-md border p-2 text-sm" required>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Payee / Received From</label>
+                <input type="text" name="payee" value="{{ old('payee') }}" placeholder="Vendor, Employee, or Donor"
+                       class="w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-slate-500">
             </div>
+
             <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Narration / Description</label>
-                <input type="text" name="narration" placeholder="Reason for transaction" class="w-full border-gray-300 rounded-md border p-2 text-sm" required>
+                <label class="block text-xs font-medium text-gray-700 mb-1">
+                    Narration / Description <span class="text-red-500 font-bold">*</span>
+                </label>
+                <input type="text" name="narration" value="{{ old('narration') }}" required placeholder="Reason for transaction"
+                       class="w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-slate-500">
             </div>
         </div>
 
-        <!-- Ledger Entries Table -->
-        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-2">Ledger Distribution (Double Entry)</h3>
-        <table class="min-w-full divide-y divide-gray-200 border mb-4 text-sm" id="entriesTable">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="p-2 text-left">Account</th>
-                    <th class="p-2 text-left">Memo</th>
-                    <th class="p-2 text-right w-32">Debit</th>
-                    <th class="p-2 text-right w-32">Credit</th>
-                    <th class="p-2 text-center w-12"></th>
-                </tr>
-            </thead>
-            <tbody id="lineItems">
-                <tr>
-                    <td class="p-2">
-                        <select name="lines[0][account_id]" class="w-full border rounded p-1 text-xs" required>
-                            <option value="">Select Account</option>
-                            @foreach($accounts as $acc)
-                                <option value="{{ $acc->id }}">{{ $acc->code }} - {{ $acc->name }}</option>
-                            @endforeach
-                        </select>
-                    </td>
-                    <td class="p-2"><input type="text" name="lines[0][memo]" class="w-full border rounded p-1 text-xs" placeholder="Memo"></td>
-                    <td class="p-2"><input type="number" step="0.01" name="lines[0][debit]" value="0.00" class="w-full border rounded p-1 text-xs text-right debit-input" oninput="calculateTotals()"></td>
-                    <td class="p-2"><input type="number" step="0.01" name="lines[0][credit]" value="0.00" class="w-full border rounded p-1 text-xs text-right credit-input" oninput="calculateTotals()"></td>
-                    <td class="p-2 text-center"></td>
-                </tr>
-                <tr>
-                    <td class="p-2">
-                        <select name="lines[1][account_id]" class="w-full border rounded p-1 text-xs" required>
-                            <option value="">Select Account</option>
-                            @foreach($accounts as $acc)
-                                <option value="{{ $acc->id }}">{{ $acc->code }} - {{ $acc->name }}</option>
-                            @endforeach
-                        </select>
-                    </td>
-                    <td class="p-2"><input type="text" name="lines[1][memo]" class="w-full border rounded p-1 text-xs" placeholder="Memo"></td>
-                    <td class="p-2"><input type="number" step="0.01" name="lines[1][debit]" value="0.00" class="w-full border rounded p-1 text-xs text-right debit-input" oninput="calculateTotals()"></td>
-                    <td class="p-2"><input type="number" step="0.01" name="lines[1][credit]" value="0.00" class="w-full border rounded p-1 text-xs text-right credit-input" oninput="calculateTotals()"></td>
-                    <td class="p-2 text-center"></td>
-                </tr>
-            </tbody>
-            <tfoot>
-                <tr class="bg-gray-100 font-bold">
-                    <td colspan="2" class="p-2 text-right">Totals:</td>
-                    <td class="p-2 text-right" id="totalDebit">0.00</td>
-                    <td class="p-2 text-right" id="totalCredit">0.00</td>
-                    <td></td>
-                </tr>
-            </tfoot>
-        </table>
+        <!-- Section Title: LEDGER DISTRIBUTION (DOUBLE ENTRY) -->
+        <div class="pt-2">
+            <h2 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Ledger Distribution (Double Entry)</h2>
+            
+            <div class="border border-gray-200 rounded overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-white">
+                        <tr>
+                            <th class="px-4 py-2.5 text-left font-semibold text-gray-600 text-xs">
+                                Account <span class="text-red-500 font-bold">*</span>
+                            </th>
+                            <th class="px-4 py-2.5 text-left font-semibold text-gray-600 text-xs">Memo</th>
+                            <th class="px-4 py-2.5 text-right font-semibold text-gray-600 text-xs w-36">Debit</th>
+                            <th class="px-4 py-2.5 text-right font-semibold text-gray-600 text-xs w-36">Credit</th>
+                            <th class="px-2 py-2.5 w-10"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 bg-white" id="ledgerRows">
+                        <!-- Row 0 -->
+                        <tr class="ledger-row">
+                            <td class="px-4 py-2">
+                                <select name="entries[0][account_id]" required class="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs bg-white focus:outline-none">
+                                    <option value="">Select Account</option>
+                                    @foreach($accounts as $acc)
+                                        <option value="{{ $acc->id }}">{{ $acc->code }} - {{ $acc->name }} ({{ ucfirst($acc->type) }})</option>
+                                    @endforeach
+                                </select>
+                            </td>
+                            <td class="px-4 py-2">
+                                <input type="text" name="entries[0][memo]" placeholder="Memo" class="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none">
+                            </td>
+                            <td class="px-4 py-2">
+                                <input type="number" step="0.01" min="0" name="entries[0][debit]" oninput="calculateTotals()" placeholder="0.00" class="debit-input w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-right font-mono focus:outline-none">
+                            </td>
+                            <td class="px-4 py-2">
+                                <input type="number" step="0.01" min="0" name="entries[0][credit]" oninput="calculateTotals()" placeholder="0.00" class="credit-input w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-right font-mono focus:outline-none">
+                            </td>
+                            <td class="px-2 py-2 text-center">
+                                <button type="button" onclick="removeRow(this)" class="text-gray-300 hover:text-red-500 font-bold text-base">&times;</button>
+                            </td>
+                        </tr>
 
-        <div class="flex justify-between items-center">
-            <button type="button" onclick="addLine()" class="text-xs bg-gray-200 hover:bg-gray-300 font-semibold px-3 py-1 rounded">+ Add Row</button>
-            <div class="space-x-2">
-                <span id="balanceIndicator" class="text-xs font-bold text-emerald-600 mr-2">Balanced</span>
-                <button type="submit" id="submitBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded text-sm shadow">Save Voucher</button>
+                        <!-- Row 1 -->
+                        <tr class="ledger-row">
+                            <td class="px-4 py-2">
+                                <select name="entries[1][account_id]" required class="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs bg-white focus:outline-none">
+                                    <option value="">Select Account</option>
+                                    @foreach($accounts as $acc)
+                                        <option value="{{ $acc->id }}">{{ $acc->code }} - {{ $acc->name }} ({{ ucfirst($acc->type) }})</option>
+                                    @endforeach
+                                </select>
+                            </td>
+                            <td class="px-4 py-2">
+                                <input type="text" name="entries[1][memo]" placeholder="Memo" class="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none">
+                            </td>
+                            <td class="px-4 py-2">
+                                <input type="number" step="0.01" min="0" name="entries[1][debit]" oninput="calculateTotals()" placeholder="0.00" class="debit-input w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-right font-mono focus:outline-none">
+                            </td>
+                            <td class="px-4 py-2">
+                                <input type="number" step="0.01" min="0" name="entries[1][credit]" oninput="calculateTotals()" placeholder="0.00" class="credit-input w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-right font-mono focus:outline-none">
+                            </td>
+                            <td class="px-2 py-2 text-center">
+                                <button type="button" onclick="removeRow(this)" class="text-gray-300 hover:text-red-500 font-bold text-base">&times;</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot class="border-t border-gray-200 bg-white">
+                        <tr>
+                            <td colspan="2" class="px-4 py-3 text-right font-bold text-gray-700 text-xs">Totals:</td>
+                            <td class="px-4 py-3 text-right font-mono font-bold text-gray-900 text-xs" id="totalDebitDisplay">0.00</td>
+                            <td class="px-4 py-3 text-right font-mono font-bold text-gray-900 text-xs" id="totalCreditDisplay">0.00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Action Footer -->
+        <div class="flex justify-between items-center pt-2">
+            <button type="button" onclick="addRow()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold px-4 py-2 rounded transition">
+                + Add Row
+            </button>
+
+            <div class="flex items-center space-x-4">
+                <span id="balanceIndicator" class="text-sm font-semibold text-emerald-600">
+                    Balanced
+                </span>
+                <button type="submit" id="saveButton" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-6 py-2 rounded transition shadow-sm">
+                    Save Voucher
+                </button>
             </div>
         </div>
     </form>
 </div>
 
 <script>
-let lineIndex = 2;
-function addLine() {
-    const tbody = document.getElementById('lineItems');
-    const row = document.createElement('tr');
-    row.innerHTML = `
-        <td class="p-2">
-            <select name="lines[${lineIndex}][account_id]" class="w-full border rounded p-1 text-xs" required>
-                <option value="">Select Account</option>
-                @foreach($accounts as $acc)
-                    <option value="{{ $acc->id }}">{{ $acc->code }} - {{ $acc->name }}</option>
-                @endforeach
-            </select>
-        </td>
-        <td class="p-2"><input type="text" name="lines[${lineIndex}][memo]" class="w-full border rounded p-1 text-xs" placeholder="Memo"></td>
-        <td class="p-2"><input type="number" step="0.01" name="lines[${lineIndex}][debit]" value="0.00" class="w-full border rounded p-1 text-xs text-right debit-input" oninput="calculateTotals()"></td>
-        <td class="p-2"><input type="number" step="0.01" name="lines[${lineIndex}][credit]" value="0.00" class="w-full border rounded p-1 text-xs text-right credit-input" oninput="calculateTotals()"></td>
-        <td class="p-2 text-center"><button type="button" onclick="this.closest('tr').remove(); calculateTotals();" class="text-red-500 font-bold">&times;</button></td>
-    `;
-    tbody.appendChild(row);
-    lineIndex++;
-}
+let rowIndex = 2;
+const accountsData = @json($accounts);
 
 function calculateTotals() {
     let debits = 0;
     let credits = 0;
-    document.querySelectorAll('.debit-input').forEach(i => debits += parseFloat(i.value) || 0);
-    document.querySelectorAll('.credit-input').forEach(i => credits += parseFloat(i.value) || 0);
 
-    document.getElementById('totalDebit').textContent = debits.toFixed(2);
-    document.getElementById('totalCredit').textContent = credits.toFixed(2);
+    document.querySelectorAll('.debit-input').forEach(input => {
+        debits += parseFloat(input.value) || 0;
+    });
+
+    document.querySelectorAll('.credit-input').forEach(input => {
+        credits += parseFloat(input.value) || 0;
+    });
+
+    document.getElementById('totalDebitDisplay').textContent = debits.toFixed(2);
+    document.getElementById('totalCreditDisplay').textContent = credits.toFixed(2);
 
     const indicator = document.getElementById('balanceIndicator');
-    const submitBtn = document.getElementById('submitBtn');
+    const saveBtn = document.getElementById('saveButton');
+    const diff = Math.abs(debits - credits);
 
-    if (debits.toFixed(2) === credits.toFixed(2) && debits > 0) {
+    if (debits > 0 && diff < 0.001) {
         indicator.textContent = 'Balanced';
-        indicator.className = 'text-xs font-bold text-emerald-600 mr-2';
-        submitBtn.disabled = false;
+        indicator.className = 'text-sm font-semibold text-emerald-600';
+        saveBtn.disabled = false;
+        saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
     } else {
-        indicator.textContent = 'Unbalanced Difference: ' + Math.abs(debits - credits).toFixed(2);
-        indicator.className = 'text-xs font-bold text-red-600 mr-2';
-        submitBtn.disabled = true;
+        indicator.textContent = 'Not Balanced';
+        indicator.className = 'text-sm font-semibold text-red-600';
     }
 }
+
+function addRow() {
+    const tbody = document.getElementById('ledgerRows');
+    const tr = document.createElement('tr');
+    tr.className = 'ledger-row';
+
+    let optionsHtml = '<option value="">Select Account</option>';
+    accountsData.forEach(acc => {
+        const type = acc.type.charAt(0).toUpperCase() + acc.type.slice(1);
+        optionsHtml += `<option value="${acc.id}">${acc.code} - ${acc.name} (${type})</option>`;
+    });
+
+    tr.innerHTML = `
+        <td class="px-4 py-2">
+            <select name="entries[${rowIndex}][account_id]" required class="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs bg-white focus:outline-none">
+                ${optionsHtml}
+            </select>
+        </td>
+        <td class="px-4 py-2">
+            <input type="text" name="entries[${rowIndex}][memo]" placeholder="Memo" class="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none">
+        </td>
+        <td class="px-4 py-2">
+            <input type="number" step="0.01" min="0" name="entries[${rowIndex}][debit]" oninput="calculateTotals()" placeholder="0.00" class="debit-input w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-right font-mono focus:outline-none">
+        </td>
+        <td class="px-4 py-2">
+            <input type="number" step="0.01" min="0" name="entries[${rowIndex}][credit]" oninput="calculateTotals()" placeholder="0.00" class="credit-input w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-right font-mono focus:outline-none">
+        </td>
+        <td class="px-2 py-2 text-center">
+            <button type="button" onclick="removeRow(this)" class="text-gray-300 hover:text-red-500 font-bold text-base">&times;</button>
+        </td>
+    `;
+
+    tbody.appendChild(tr);
+    rowIndex++;
+}
+
+function removeRow(btn) {
+    const rows = document.querySelectorAll('.ledger-row');
+    if (rows.length > 2) {
+        btn.closest('tr').remove();
+        calculateTotals();
+    } else {
+        alert('A voucher requires at least two ledger entry rows.');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    calculateTotals();
+});
 </script>
 @endsection

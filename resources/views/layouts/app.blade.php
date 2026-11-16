@@ -55,6 +55,21 @@
                                 Trial Balance
                             </a>
 
+                            <a href="{{ route('reports.profit-loss') }}" 
+                               class="block px-3 py-2 rounded text-xs font-medium transition {{ request()->routeIs('reports.profit-loss') ? 'bg-slate-800 text-white font-semibold' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                                Profit &amp; Loss (P&amp;L)
+                            </a>
+
+                            <a href="{{ route('reports.balance-sheet') }}" 
+                               class="block px-3 py-2 rounded text-xs font-medium transition {{ request()->routeIs('reports.balance-sheet') ? 'bg-slate-800 text-white font-semibold' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                                Balance Sheet
+                            </a>
+
+                            <a href="{{ route('reports.hub') }}" 
+                               class="block px-3 py-2 rounded text-xs font-medium transition {{ request()->routeIs('reports.hub') ? 'bg-slate-800 text-white font-semibold' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                                Reports Center (PDF)
+                            </a>
+
                             <a href="{{ route('admin.accounts') }}" 
                                class="block px-3 py-2 rounded text-xs font-medium transition {{ request()->routeIs('admin.accounts') ? 'bg-slate-800 text-white font-semibold' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                                 Chart of Accounts

@@ -14,20 +14,17 @@ class Voucher extends Model
     protected $fillable = [
         'voucher_number',
         'type',
-        'program_id',
         'transaction_date',
-        'payee_or_source',
+        'program_id',
+        'payee',
         'narration',
         'status',
         'created_by',
         'approved_by',
-        'approved_at',
-        'rejection_reason',
     ];
 
     protected $casts = [
         'transaction_date' => 'date',
-        'approved_at' => 'datetime',
     ];
 
     public function program(): BelongsTo
