@@ -36,12 +36,12 @@ class VoucherController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'type'             => 'required|in:payment,receipt,journal',
-            'transaction_date' => 'required|date',
-            'program_id'       => 'nullable',
-            'payee'            => 'nullable|string|max:255',
-            'narration'        => 'required|string|max:500',
-            'entries'          => 'required|array|min:2',
+            'type'                 => 'required|in:payment,receipt,journal',
+            'transaction_date'     => 'required|date',
+            'program_id'           => 'nullable',
+            'payee'                => 'nullable|string|max:255',
+            'narration'            => 'required|string|max:500',
+            'entries'              => 'required|array|min:2',
             'entries.*.account_id' => 'required|exists:accounts,id',
             'entries.*.memo'       => 'nullable|string|max:255',
             'entries.*.debit'      => 'nullable|numeric|min:0',
@@ -68,7 +68,11 @@ class VoucherController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($request, $programId) {
+        $user = Auth::user();
+        $isAdmin = $user && strtolower((string) $user->role) === 'admin';
+        $status = $isAdmin ? 'approved' : 'pending_approval';
+
+        DB::transaction(function () use ($request, $programId, $status, $isAdmin) {
             $prefix = match ($request->input('type')) {
                 'payment' => 'PV',
                 'receipt' => 'RV',
@@ -84,9 +88,12 @@ class VoucherController extends Controller
                 'transaction_date' => $request->input('transaction_date'),
                 'program_id'       => $programId,
                 'payee'            => $request->input('payee'),
+                'payee_or_source'  => $request->input('payee'),
                 'narration'        => $request->input('narration'),
-                'status'           => 'approved',
+                'status'           => $status,
                 'created_by'       => Auth::id() ?? 1,
+                'approved_by'      => $isAdmin ? Auth::id() : null,
+                'approved_at'      => $isAdmin ? now() : null,
             ]);
 
             foreach ($request->input('entries') as $entryData) {
@@ -105,12 +112,49 @@ class VoucherController extends Controller
             }
         });
 
-        return redirect()->route('vouchers.index')->with('success', 'Voucher committed to General Ledger.');
+        $message = $isAdmin
+            ? 'Voucher approved and committed to General Ledger.'
+            : 'Voucher submitted and awaiting Admin approval before posting to the General Ledger.';
+
+        return redirect()->route('vouchers.index')->with('success', $message);
     }
 
     public function show($id)
     {
         $voucher = Voucher::with(['program', 'creator', 'ledgerEntries.account'])->findOrFail($id);
         return view('vouchers.show', compact('voucher'));
+    }
+
+    public function approve($id)
+    {
+        $user = Auth::user();
+        if (!$user || strtolower((string) $user->role) !== 'admin') {
+            abort(403, 'Only an administrator can approve vouchers.');
+        }
+
+        $voucher = Voucher::findOrFail($id);
+        $voucher->update([
+            'status'      => 'approved',
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        return back()->with('success', "Voucher {$voucher->voucher_number} approved and committed to the General Ledger.");
+    }
+
+    public function reject(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user || strtolower((string) $user->role) !== 'admin') {
+            abort(403, 'Only an administrator can reject vouchers.');
+        }
+
+        $voucher = Voucher::findOrFail($id);
+        $voucher->update([
+            'status'           => 'rejected',
+            'rejection_reason' => $request->input('rejection_reason'),
+        ]);
+
+        return back()->with('success', "Voucher {$voucher->voucher_number} has been rejected.");
     }
 }
