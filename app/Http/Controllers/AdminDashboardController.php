@@ -14,12 +14,15 @@ class AdminDashboardController extends Controller
 {
     public function index()
     {
-        $asOfDate = now()->format('Y-m-d');
-
-        // 1. Core KPIs (Accurate net financial position)
+        // 1. Core KPIs (Accurate net financial position matching Balance Sheet)
         $totalAssets = (float) LedgerEntry::whereHas('account', fn($q) => $q->where('type', 'asset')->where('is_active', true))
             ->whereHas('voucher', fn($q) => $q->where('status', 'approved'))
             ->selectRaw('COALESCE(SUM(debit - credit), 0) as net')
+            ->value('net');
+
+        $totalLiabilities = (float) LedgerEntry::whereHas('account', fn($q) => $q->where('type', 'liability')->where('is_active', true))
+            ->whereHas('voucher', fn($q) => $q->where('status', 'approved'))
+            ->selectRaw('COALESCE(SUM(credit - debit), 0) as net')
             ->value('net');
 
         $totalExpenses = (float) LedgerEntry::whereHas('account', fn($q) => $q->where('type', 'expense')->where('is_active', true))
@@ -32,32 +35,35 @@ class AdminDashboardController extends Controller
             ->selectRaw('COALESCE(SUM(credit - debit), 0) as net')
             ->value('net');
 
-        $netPosition = $totalAssets - $totalExpenses;
+        // Expenses are already deducted from Bank/M-Pesa when paid, so net position is Assets - Liabilities
+        $netPosition = $totalAssets - $totalLiabilities;
 
         $pendingApprovalsCount = Voucher::where('status', 'pending_approval')->count();
         $totalPostedVouchers = Voucher::where('status', 'approved')->count();
 
-        // 2. Individual Bank & Liquid Accounts Breakdown (Leaf accounts under Cash/Bank)
+        // 2. Individual Bank & Liquid Accounts Breakdown (Active cash, bank, and mobile wallet accounts with non-zero balances)
         $liquidAccounts = Account::where('type', 'asset')
             ->where('is_active', true)
-            ->whereDoesntHave('children')
             ->where(function ($q) {
                 $q->where('description', 'like', '%bank%')
                   ->orWhere('description', 'like', '%cash%')
                   ->orWhere('name', 'like', '%bank%')
                   ->orWhere('name', 'like', '%pesa%')
-                  ->orWhere('name', 'like', '%cash%');
+                  ->orWhere('name', 'like', '%cash%')
+                  ->orWhereIn('code', ['1110', '1120', '1130', '100000']);
             })
+            ->orderBy('code')
             ->get()
-            ->map(function ($acc) use ($asOfDate) {
+            ->map(function ($acc) {
                 $totals = LedgerEntry::where('account_id', $acc->id)
-                    ->whereHas('voucher', fn($q) => $q->where('status', 'approved')->where('transaction_date', '<=', $asOfDate))
+                    ->whereHas('voucher', fn($q) => $q->where('status', 'approved'))
                     ->selectRaw('COALESCE(SUM(debit - credit), 0) as balance')
                     ->first();
                 $acc->current_balance = (float) ($totals->balance ?? 0);
                 return $acc;
             })
-            ->filter(fn($acc) => $acc->current_balance != 0 || in_array($acc->code, ['1110', '1120', '1130', '100000']));
+            ->filter(fn($acc) => $acc->current_balance != 0)
+            ->values();
 
         // 3. 6-Month Income vs Expense Trend for Visual Chart
         $months = [];
@@ -74,15 +80,15 @@ class AdminDashboardController extends Controller
 
             $inc = (float) LedgerEntry::whereHas('account', fn($q) => $q->where('type', 'revenue'))
                 ->whereHas('voucher', fn($q) => $q->where('status', 'approved')
-                    ->whereYear('transaction_date', $year)
-                    ->whereMonth('transaction_date', $month))
+                    ->whereYear('created_at', $year)
+                    ->whereMonth('created_at', $month))
                 ->selectRaw('COALESCE(SUM(credit - debit), 0) as net')
                 ->value('net');
 
             $exp = (float) LedgerEntry::whereHas('account', fn($q) => $q->where('type', 'expense'))
                 ->whereHas('voucher', fn($q) => $q->where('status', 'approved')
-                    ->whereYear('transaction_date', $year)
-                    ->whereMonth('transaction_date', $month))
+                    ->whereYear('created_at', $year)
+                    ->whereMonth('created_at', $month))
                 ->selectRaw('COALESCE(SUM(debit - credit), 0) as net')
                 ->value('net');
 
@@ -92,18 +98,19 @@ class AdminDashboardController extends Controller
 
         // 4. Feed of Recent Vouchers & Approvals
         $recentVouchers = Voucher::with(['program', 'creator'])
-            ->latest('transaction_date')
+            ->latest('created_at')
             ->take(5)
             ->get();
 
         $pendingVouchers = Voucher::with(['program', 'creator'])
             ->where('status', 'pending_approval')
-            ->latest('transaction_date')
+            ->latest('created_at')
             ->take(5)
             ->get();
 
         return view('admin.dashboard', compact(
             'totalAssets',
+            'totalLiabilities',
             'totalExpenses',
             'totalIncome',
             'netPosition',
@@ -122,7 +129,7 @@ class AdminDashboardController extends Controller
     {
         $vouchers = Voucher::with(['program', 'creator', 'ledgerEntries.account'])
             ->where('status', 'pending_approval')
-            ->latest('transaction_date')
+            ->latest('created_at')
             ->paginate(15);
 
         return view('admin.approvals', compact('vouchers'));

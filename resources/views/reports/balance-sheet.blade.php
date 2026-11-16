@@ -6,7 +6,7 @@
     <div class="bg-white rounded-lg border border-slate-200 p-5 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <div class="flex items-center space-x-3">
-                <h1 class="text-xl font-bold text-slate-800">Financial Position & Asset Liquidity</h1>
+                <h1 class="text-xl font-bold text-slate-800">Financial Position &amp; Asset Liquidity</h1>
                 <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">As of {{ \Carbon\Carbon::parse($asOfDate)->format('M d, Y') }}</span>
             </div>
             <p class="text-xs text-slate-500 mt-1">Click on any account row to open its full transaction register</p>
@@ -22,10 +22,10 @@
                 </button>
             </form>
 
-            <button type="button" onclick="window.print()" 
-                    class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-3.5 py-1.5 rounded transition shadow-sm">
+            <a href="{{ route('reports.balance-sheet.print', ['to_date' => $asOfDate]) }}" target="_blank"
+               class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-3.5 py-1.5 rounded transition shadow-sm">
                 Export to PDF
-            </button>
+            </a>
         </div>
     </div>
 
@@ -33,7 +33,7 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
         <!-- 1. Total Money & Assets Available -->
         <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Money & Assets Available</span>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Money &amp; Assets Available</span>
             <div class="mt-2 text-2xl font-black font-mono text-slate-800">
                 {{ $totalAssets < 0 ? '-' : '' }}KSh {{ number_format(abs($totalAssets), 2) }}
             </div>
@@ -56,7 +56,7 @@
                 {{ $netAvailableBalance < 0 ? '-' : '' }}KSh {{ number_format(abs($netAvailableBalance), 2) }}
             </div>
             <p class="text-[11px] {{ $netAvailableBalance < 0 ? 'text-red-500 font-semibold' : 'text-slate-500' }} mt-1">
-                {{ $netAvailableBalance < 0 ? 'Deficit: Incurred expenses exceed available assets' : 'Surplus: Assets comfortably cover expenses' }}
+                {{ $netAvailableBalance < 0 ? 'Deficit: Obligations exceed available assets' : 'Surplus: Net cash & assets after liabilities' }}
             </p>
         </div>
     </div>
@@ -68,7 +68,7 @@
         <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between">
             <div>
                 <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-800">1. Available Assets & Funds</h2>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-800">1. Available Assets &amp; Funds</h2>
                     <span class="text-[11px] text-sky-700 font-semibold">Click row to view ledger</span>
                 </div>
 
@@ -207,7 +207,9 @@
     <div class="bg-white rounded-lg border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row justify-between items-center text-xs">
         <div class="space-y-0.5 mb-3 sm:mb-0">
             <span class="font-bold text-slate-800 text-sm">Net Available Position Formula</span>
-            <p class="text-slate-500">Net Balance = Total Holdings ({{ $totalAssets < 0 ? '-' : '' }}KSh {{ number_format(abs($totalAssets), 2) }}) &minus; Total Incurred Expenses ({{ $totalExpenses < 0 ? '-' : '' }}KSh {{ number_format(abs($totalExpenses), 2) }})</p>
+            <p class="text-slate-500">
+                Remaining Funds = Total Opening &amp; Income Funds (KSh {{ number_format(($totalEquity ?? 0) + ($totalRevenue ?? 0), 2) }}) &minus; Total Incurred Expenses (KSh {{ number_format(abs($totalExpenses), 2) }})
+            </p>
         </div>
         <div class="text-right">
             <span class="block text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Remaining Funds</span>
@@ -217,22 +219,4 @@
         </div>
     </div>
 </div>
-
-<style>
-@media print {
-    aside, button, form, nav {
-        display: none !important;
-    }
-    body {
-        background-color: white !important;
-        color: black !important;
-    }
-    .ml-60 {
-        margin-left: 0 !important;
-    }
-    #printableArea {
-        display: block !important;
-    }
-}
-</style>
 @endsection

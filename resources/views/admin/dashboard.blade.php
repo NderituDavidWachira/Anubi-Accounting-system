@@ -8,7 +8,7 @@
     <!-- Top Bar: Clean Greeting & Quick Actions -->
     <div class="bg-white rounded-lg border border-slate-200 p-5 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <h1 class="text-xl font-bold text-slate-800">Financial Overview & Dashboard</h1>
+            <h1 class="text-xl font-bold text-slate-800">Financial Overview &amp; Dashboard</h1>
             <p class="text-xs text-slate-500 mt-0.5">Real-time ledger balances, liquid funds, and cost center activity</p>
         </div>
         <div class="flex items-center space-x-2.5">
@@ -33,7 +33,7 @@
         <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between">
             <div>
                 <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Money & Assets Available</span>
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Money &amp; Assets Available</span>
                     <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                 </div>
                 <div class="mt-2 text-2xl font-black font-mono text-slate-800">
@@ -77,7 +77,7 @@
                 </div>
             </div>
             <div class="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-500">
-                Formula: Available Holdings &minus; Expenditures
+                Formula: Total Holdings &minus; Liabilities (Net Cash &amp; Assets)
             </div>
         </div>
     </div>
@@ -89,7 +89,7 @@
         <div class="lg:col-span-2 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between">
             <div>
                 <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-800">Cash, Bank & Mobile Wallets</h2>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-800">Cash, Bank &amp; Mobile Wallets</h2>
                     <span class="text-[11px] text-sky-700 font-semibold">Click any account to view transactions</span>
                 </div>
 
@@ -175,6 +175,9 @@
 
                 <div class="divide-y divide-slate-100 text-xs">
                     @forelse($recentVouchers as $rv)
+                        @php
+                            $voucherDate = $rv->transaction_date ?? ($rv->date ?? $rv->created_at);
+                        @endphp
                         <div class="p-3.5 flex items-center justify-between hover:bg-slate-50">
                             <div>
                                 <div class="flex items-center space-x-2">
@@ -187,7 +190,7 @@
                             </div>
                             <div class="text-right">
                                 <div class="font-mono text-slate-600 text-[11px]">
-                                    {{ \Carbon\Carbon::parse($rv->transaction_date)->format('d M Y') }}
+                                    {{ \Carbon\Carbon::parse($voucherDate)->format('d M Y') }}
                                 </div>
                                 <a href="{{ route('vouchers.show', $rv->id) }}" class="text-[11px] text-sky-700 hover:underline font-medium">Inspect</a>
                             </div>
@@ -200,7 +203,7 @@
 
             <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500 flex justify-between items-center">
                 <span>Audit trail logged to Double-Entry Ledger</span>
-                <span>Anubi FMS v2.0</span>
+                <span>Anubi Accounting System</span>
             </div>
         </div>
 
@@ -211,8 +214,8 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     // 1. Donut Chart: Funds Distribution across Liquid Accounts
-    const accountNames = @json($liquidAccounts->pluck('name'));
-    const accountBalances = @json($liquidAccounts->pluck('current_balance'));
+    const accountNames = @json($liquidAccounts->pluck('name')->values());
+    const accountBalances = @json($liquidAccounts->pluck('current_balance')->values());
 
     const fundsCtx = document.getElementById('fundsChart').getContext('2d');
     new Chart(fundsCtx, {
